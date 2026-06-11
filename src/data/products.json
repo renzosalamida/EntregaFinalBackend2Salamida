@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1,
+    "title": "Mouse",
+    "description": "Mouse Gamer",
+    "code": "MS001",
+    "price": 500,
+    "status": true,
+    "stock": 15,
+    "category": "Tecnologia",
+    "thumbnails": []
+  }
+]

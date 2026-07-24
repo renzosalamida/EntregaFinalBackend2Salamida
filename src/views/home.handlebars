@@ -3,7 +3,25 @@
 <ul>
 {{#each products}}
     <li>
-        {{this.title}} - ${{this.price}}
+        <strong>{{this.title}}</strong><br>
+        Precio: ${{this.price}}<br>
+        Categoría: {{this.category}}<br>
+        Stock: {{this.stock}}<br>
+
+        <a href="/products/{{this._id}}">Ver detalle</a>
     </li>
+    <br>
 {{/each}}
 </ul>
+
+<div>
+    {{#if hasPrevPage}}
+        <a href="/products?page={{prevPage}}">⬅ Anterior</a>
+    {{/if}}
+
+    <span>Página {{page}} de {{totalPages}}</span>
+
+    {{#if hasNextPage}}
+        <a href="/products?page={{nextPage}}">Siguiente ➡</a>
+    {{/if}}
+</div>

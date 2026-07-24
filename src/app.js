@@ -6,12 +6,14 @@ import http from "http";
 import productsRouter from "./routes/products.router.js";
 import cartsRouter from "./routes/carts.router.js";
 import viewsRouter from "./routes/views.router.js";
-import ProductManager from "./managers/ProductManager.js";
+import productModel from "./models/product.model.js";
+import { connectDB } from "./config/mongoDB.js";
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-const productManager = new ProductManager("./src/data/products.json");
+
+await connectDB();
 
 // Middleware
 app.use(express.json());
@@ -34,21 +36,23 @@ app.use("/", viewsRouter);
 io.on("connection", async (socket) => {
     console.log("Cliente conectado");
 
-    // Enviar productos al conectarse
-    socket.emit("updateProducts", await productManager.getProducts());
+    const products = await productModel.find().lean();
+    socket.emit("updateProducts", products);
 
     // Agregar producto
     socket.on("addProduct", async (product) => {
-        await productManager.addProduct(product);
+        await productModel.create(product);
 
-        io.emit("updateProducts", await productManager.getProducts());
+        const updatedProducts = await productModel.find().lean();
+        io.emit("updateProducts", updatedProducts);
     });
 
     // Eliminar producto
     socket.on("deleteProduct", async (id) => {
-        await productManager.deleteProduct(id);
+        await productModel.findByIdAndDelete(id);
 
-        io.emit("updateProducts", await productManager.getProducts());
+        const updatedProducts = await productModel.find().lean();
+        io.emit("updateProducts", updatedProducts);
     });
 });
 

@@ -1,5 +1,7 @@
 import { Router } from "express";
-import productModel from "../models/product.model.js";
+import passport from "passport";
+import { productRepository } from "../repositories/index.js";
+import { authorization } from "../middlewares/authorization.js";
 
 const router = Router();
 
@@ -40,7 +42,10 @@ router.get("/", async (req, res) => {
             options.sort = { price: -1 };
         }
 
-        const result = await productModel.paginate(filter, options);
+        const result = await productRepository.getProducts(
+            filter,
+            options
+        );
 
         const createLink = (pageNumber) => {
             const params = new URLSearchParams();
@@ -87,9 +92,9 @@ router.get("/", async (req, res) => {
 // Obtener un producto por ID
 router.get("/:pid", async (req, res) => {
     try {
-        const product = await productModel
-            .findById(req.params.pid)
-            .lean();
+        const product = await productRepository.getProductById(
+            req.params.pid
+        );
 
         if (!product) {
             return res.status(404).json({
@@ -110,79 +115,91 @@ router.get("/:pid", async (req, res) => {
     }
 });
 
-// Crear un producto
-router.post("/", async (req, res) => {
-    try {
-        const newProduct = await productModel.create(req.body);
+// Crear un producto - SOLO ADMIN
+router.post(
+    "/",
+    passport.authenticate("current", { session: false }),
+    authorization("admin"),
+    async (req, res) => {
+        try {
+            const newProduct =
+                await productRepository.createProduct(req.body);
 
-        res.status(201).json({
-            status: "success",
-            payload: newProduct,
-        });
-    } catch (error) {
-        res.status(400).json({
-            status: "error",
-            message: error.message,
-        });
+            res.status(201).json({
+                status: "success",
+                payload: newProduct,
+            });
+        } catch (error) {
+            res.status(400).json({
+                status: "error",
+                message: error.message,
+            });
+        }
     }
-});
+);
 
-// Actualizar un producto
-router.put("/:pid", async (req, res) => {
-    try {
-        const updatedProduct = await productModel.findByIdAndUpdate(
-            req.params.pid,
-            req.body,
-            {
-                new: true,
-                runValidators: true,
+// Actualizar un producto - SOLO ADMIN
+router.put(
+    "/:pid",
+    passport.authenticate("current", { session: false }),
+    authorization("admin"),
+    async (req, res) => {
+        try {
+            const updatedProduct =
+                await productRepository.updateProduct(
+                    req.params.pid,
+                    req.body
+                );
+
+            if (!updatedProduct) {
+                return res.status(404).json({
+                    status: "error",
+                    message: "Producto no encontrado",
+                });
             }
-        );
 
-        if (!updatedProduct) {
-            return res.status(404).json({
+            res.json({
+                status: "success",
+                payload: updatedProduct,
+            });
+        } catch (error) {
+            res.status(400).json({
                 status: "error",
-                message: "Producto no encontrado",
+                message: error.message,
             });
         }
-
-        res.json({
-            status: "success",
-            payload: updatedProduct,
-        });
-    } catch (error) {
-        res.status(400).json({
-            status: "error",
-            message: error.message,
-        });
     }
-});
+);
 
-// Eliminar un producto
-router.delete("/:pid", async (req, res) => {
-    try {
-        const deletedProduct = await productModel.findByIdAndDelete(
-            req.params.pid
-        );
+// Eliminar un producto - SOLO ADMIN
+router.delete(
+    "/:pid",
+    passport.authenticate("current", { session: false }),
+    authorization("admin"),
+    async (req, res) => {
+        try {
+            const deletedProduct =
+                await productRepository.deleteProduct(req.params.pid);
 
-        if (!deletedProduct) {
-            return res.status(404).json({
+            if (!deletedProduct) {
+                return res.status(404).json({
+                    status: "error",
+                    message: "Producto no encontrado",
+                });
+            }
+
+            res.json({
+                status: "success",
+                message: "Producto eliminado",
+                payload: deletedProduct,
+            });
+        } catch (error) {
+            res.status(400).json({
                 status: "error",
-                message: "Producto no encontrado",
+                message: "ID de producto inválido",
             });
         }
-
-        res.json({
-            status: "success",
-            message: "Producto eliminado",
-            payload: deletedProduct,
-        });
-    } catch (error) {
-        res.status(400).json({
-            status: "error",
-            message: "ID de producto inválido",
-        });
     }
-});
+);
 
 export default router;

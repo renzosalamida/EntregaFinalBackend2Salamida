@@ -1,6 +1,8 @@
 import { Router } from "express";
-import productModel from "../models/product.model.js";
-import cartModel from "../models/cart.model.js";
+import {
+    productRepository,
+    cartRepository,
+} from "../repositories/index.js";
 
 const router = Router();
 
@@ -8,11 +10,11 @@ router.get(["/", "/products"], async (req, res) => {
     try {
         const { page = 1, limit = 10 } = req.query;
 
-        const result = await productModel.paginate(
+        const result = await productRepository.getProducts(
             {},
             {
-                page,
-                limit,
+                page: Number(page),
+                limit: Number(limit),
                 lean: true,
             }
         );
@@ -33,8 +35,15 @@ router.get(["/", "/products"], async (req, res) => {
 
 router.get("/realtimeproducts", async (req, res) => {
     try {
-        const products = await productModel.find().lean();
-
+        const result = await productRepository.getProducts(
+            {},
+            {
+                page: 1,
+                limit: 100,
+                lean: true,
+            }
+        );
+        const products = result.docs;
         res.render("realTimeProducts", { products });
     } catch (error) {
         res.status(500).send(error.message);
@@ -75,4 +84,18 @@ router.get("/carts/:cid", async (req, res) => {
     }
 });
 
+// Vista para restablecer contraseña
+router.get("/reset-password", (req, res) => {
+    const { token } = req.query;
+
+    if (!token) {
+        return res.status(400).send(
+            "Token de recuperación no proporcionado"
+        );
+    }
+
+    res.render("resetPassword", {
+        token,
+    });
+});
 export default router;

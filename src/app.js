@@ -12,7 +12,7 @@ import viewsRouter from "./routes/views.router.js";
 import usersRouter from "./routes/users.router.js";
 import sessionsRouter from "./routes/sessions.router.js";
 
-import productModel from "./models/product.model.js";
+import { productRepository } from "./repositories/index.js";
 import { connectDB } from "./config/mongoDB.js";
 import { initializePassport } from "./config/passport.config.js";
 
@@ -49,28 +49,69 @@ app.use("/", viewsRouter);
 // Socket.IO
 io.on("connection", async (socket) => {
     console.log("Cliente conectado");
-
-    const products = await productModel.find().lean();
-    socket.emit("updateProducts", products);
+    try {
+        const result = await productRepository.getProducts(
+            {},
+            {
+                limit: 100,
+                page: 1,
+                lean: true,
+            }
+        );
+        socket.emit("updateProducts", result.docs);
+    } catch (error) {
+        console.error(
+            "Error al obtener productos:",
+            error.message
+        );
+    }
 
     // Agregar producto
     socket.on("addProduct", async (product) => {
-        await productModel.create(product);
-
-        const updatedProducts = await productModel.find().lean();
-        io.emit("updateProducts", updatedProducts);
+        try {
+            await productRepository.createProduct(product);
+            const result = await productRepository.getProducts(
+                {},
+                {
+                    limit: 100,
+                    page: 1,
+                    lean: true,
+                }
+            );
+            io.emit("updateProducts", result.docs);
+        } catch (error) {
+            console.error(
+                "Error al agregar producto:",
+                error.message
+            );
+        }
     });
 
     // Eliminar producto
     socket.on("deleteProduct", async (id) => {
-        await productModel.findByIdAndDelete(id);
-
-        const updatedProducts = await productModel.find().lean();
-        io.emit("updateProducts", updatedProducts);
+        try {
+            await productRepository.deleteProduct(id);
+            const result = await productRepository.getProducts(
+                {},
+                {
+                    limit: 100,
+                    page: 1,
+                    lean: true,
+                }
+            );
+            io.emit("updateProducts", result.docs);
+        } catch (error) {
+            console.error(
+                "Error al eliminar producto:",
+                error.message
+            );
+        }
     });
 });
 
 // Levantar servidor
-server.listen(8080, () => {
-    console.log("Servidor escuchando en puerto 8080");
+const PORT = process.env.PORT || 8080;
+
+server.listen(PORT, () => {
+    console.log(`Servidor escuchando en puerto ${PORT}`);
 });

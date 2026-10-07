@@ -1,7 +1,11 @@
 import { Router } from "express";
 import passport from "passport";
-import userModel from "../models/user.model.js";
-import cartModel from "../models/cart.model.js";
+
+import {
+    userRepository,
+    cartRepository,
+} from "../repositories/index.js";
+
 import { createHash } from "../utils/utils.js";
 import { authorization } from "../middlewares/authorization.js";
 
@@ -31,9 +35,7 @@ router.post("/", async (req, res) => {
             });
         }
 
-        const existingUser = await userModel.findOne({
-            email: email.toLowerCase(),
-        });
+        const existingUser = await userRepository.getUserByEmail(email);
 
         if (existingUser) {
             return res.status(409).json({
@@ -42,12 +44,14 @@ router.post("/", async (req, res) => {
             });
         }
 
-        const cart = await cartModel.create({ products: [] });
+        const cart = await cartRepository.createCart({
+            products: [],
+        });
 
-        const newUser = await userModel.create({
+        const newUser = await userRepository.createUser({
             first_name,
             last_name,
-            email,
+            email: email.toLowerCase(),
             age,
             password: createHash(password),
             cart: cart._id,
@@ -72,10 +76,7 @@ router.post("/", async (req, res) => {
 // READ: obtener todos los usuarios
 router.get("/", async (req, res) => {
     try {
-        const users = await userModel
-            .find()
-            .select("-password")
-            .populate("cart");
+        const users = await userRepository.getUsers();
 
         res.json({
             status: "success",
@@ -92,10 +93,7 @@ router.get("/", async (req, res) => {
 // READ: obtener un usuario por ID
 router.get("/:uid", async (req, res) => {
     try {
-        const user = await userModel
-            .findById(req.params.uid)
-            .select("-password")
-            .populate("cart");
+        const user = await userRepository.getUserById(req.params.uid);
 
         if (!user) {
             return res.status(404).json({
@@ -129,12 +127,10 @@ router.put("/:uid", async (req, res) => {
             updates.email = updates.email.toLowerCase();
         }
 
-        const updatedUser = await userModel
-            .findByIdAndUpdate(req.params.uid, updates, {
-                new: true,
-                runValidators: true,
-            })
-            .select("-password");
+        const updatedUser = await userRepository.updateUser(
+            req.params.uid,
+            updates
+        );
 
         if (!updatedUser) {
             return res.status(404).json({
@@ -158,7 +154,7 @@ router.put("/:uid", async (req, res) => {
 // DELETE: eliminar usuario
 router.delete("/:uid", async (req, res) => {
     try {
-        const deletedUser = await userModel.findByIdAndDelete(req.params.uid);
+        const deletedUser = await userRepository.deleteUser(req.params.uid);
 
         if (!deletedUser) {
             return res.status(404).json({
